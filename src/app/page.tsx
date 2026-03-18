@@ -67,7 +67,7 @@ export default function Home() {
     const generated = processBoms({ variantes, componentes, centrosTrabajo: centros }, startId, startLineId)
 
     const bomBlob = exportToExcel(generated)
-    const opsBlob = exportOperationsToExcel(generated, centros, operaciones)
+    const opsBlob = exportOperationsToExcel(generated, centros, operaciones ?? [])
 
     setBoms(generated)
     setDownloadUrl(URL.createObjectURL(bomBlob))
