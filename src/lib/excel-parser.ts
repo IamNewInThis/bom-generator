@@ -11,35 +11,52 @@ function num(v: unknown): number {
   return isNaN(n) ? 0 : n
 }
 
-function firstSheet(buffer: ArrayBuffer): Row[] {
+export function getSheetNames(buffer: ArrayBuffer): string[] {
   const workbook = XLSX.read(buffer, { type: 'array' })
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) throw new Error('El archivo está vacío')
-  return XLSX.utils.sheet_to_json<Row>(workbook.Sheets[sheetName])
+  return workbook.SheetNames
+}
+
+function getSheet(buffer: ArrayBuffer, sheetName?: string): Row[] {
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const name = sheetName ?? workbook.SheetNames[0]
+  if (!name) throw new Error('El archivo está vacío')
+  return XLSX.utils.sheet_to_json<Row>(workbook.Sheets[name])
 }
 
 /**
  * Extrae Paso y Rango del Variant Name.
- * Patrón: "{min}-{rango}, [...] Nombre, {paso}"
- * Ejemplo: "200-240, [ZBZ-41] Cuarzo, 40" → rango=240, paso=40
+ * Busca el primer segmento con patrón "X-Y" (en cualquier posición) y toma Y como rango.
+ * Paso: el último segmento si es un número suelto (no forma parte de un rango).
+ * Ejemplos:
+ *   "200-240, [ZBZ-41] Cuarzo, 40" → rango=240, paso=40
+ *   "ST08, 0-100"                   → rango=100, paso=0
  */
 function parsePasoRangoFromName(varianteName: string): { paso: number; rango: number } {
   const parts = varianteName.split(',')
 
-  // Rango: segundo número del primer segmento "X-Y"
-  const firstPart = parts[0]?.trim() ?? ''
-  const rangeMatch = firstPart.match(/\d+[\.,]?\d*-(\d+[\.,]?\d*)/)
-  const rango = rangeMatch ? num(rangeMatch[1]) : num(firstPart.match(/\d+/)?.[0] ?? '0')
+  // Rango: buscar el primer segmento que contenga un patrón "X-Y"
+  let rango = 0
+  for (const part of parts) {
+    const rangeMatch = part.trim().match(/\d+[\.,]?\d*-(\d+[\.,]?\d*)/)
+    if (rangeMatch) {
+      rango = num(rangeMatch[1])
+      break
+    }
+  }
+  // Fallback: primer número del primer segmento
+  if (rango === 0) {
+    rango = num(parts[0]?.trim().match(/\d+/)?.[0] ?? '0')
+  }
 
-  // Paso: el número del último segmento
+  // Paso: el último segmento si es un número suelto (no contiene "X-Y")
   const lastPart = parts[parts.length - 1]?.trim() ?? ''
-  const paso = num(lastPart.match(/\d+[\.,]?\d*/)?.[0] ?? '0')
+  const paso = /\d+-\d+/.test(lastPart) ? 0 : num(lastPart.match(/\d+[\.,]?\d*/)?.[0] ?? '0')
 
   return { paso, rango }
 }
 
-export function parseVariantes(buffer: ArrayBuffer): Variante[] {
-  const rows = firstSheet(buffer)
+export function parseVariantes(buffer: ArrayBuffer, sheetName?: string): Variante[] {
+  const rows = getSheet(buffer, sheetName)
   if (rows.length === 0) throw new Error('El archivo de variantes no tiene filas')
   return rows.map((row) => {
     const varianteId = str(
@@ -81,8 +98,8 @@ export function parseVariantes(buffer: ArrayBuffer): Variante[] {
   })
 }
 
-export function parseComponentes(buffer: ArrayBuffer): Componente[] {
-  const rows = firstSheet(buffer)
+export function parseComponentes(buffer: ArrayBuffer, sheetName?: string): Componente[] {
+  const rows = getSheet(buffer, sheetName)
   if (rows.length === 0) throw new Error('El archivo de componentes no tiene filas')
   return rows.map((row) => ({
     id: str(
@@ -107,8 +124,8 @@ export function parseComponentes(buffer: ArrayBuffer): Componente[] {
   }))
 }
 
-export function parseCentrosTrabajo(buffer: ArrayBuffer): CentroTrabajo[] {
-  const rows = firstSheet(buffer)
+export function parseCentrosTrabajo(buffer: ArrayBuffer, sheetName?: string): CentroTrabajo[] {
+  const rows = getSheet(buffer, sheetName)
   if (rows.length === 0) throw new Error('El archivo de centros de trabajo no tiene filas')
   return rows.map((row) => ({
     id: num(
@@ -122,8 +139,8 @@ export function parseCentrosTrabajo(buffer: ArrayBuffer): CentroTrabajo[] {
   }))
 }
 
-export function parseOperaciones(buffer: ArrayBuffer): Operacion[] {
-  const rows = firstSheet(buffer)
+export function parseOperaciones(buffer: ArrayBuffer, sheetName?: string): Operacion[] {
+  const rows = getSheet(buffer, sheetName)
   if (rows.length === 0) throw new Error('El archivo de operaciones no tiene filas')
   return rows.map((row) => ({
     nombre: str(

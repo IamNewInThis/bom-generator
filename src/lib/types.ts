@@ -23,6 +23,17 @@ export interface Operacion {
   nombre: string
 }
 
+export interface ComponentRule {
+  id: string
+  label: string
+  /** Prefijo que identifica los componentes "variables" de este grupo (ej: "ZBZ-" o "Yeso Cartón") */
+  componentPrefix: string
+  /** Cómo extraer el código del Variant Name */
+  extractMode: 'brackets' | 'firstSegment'
+  /** Cómo comparar el código con el nombre del componente */
+  matchMode: 'exactPrefix' | 'normalizedContains'
+}
+
 export interface InputData {
   variantes: Variante[]
   componentes: Componente[]

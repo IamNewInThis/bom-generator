@@ -1,41 +1,85 @@
-import type { InputData, Bom, BomLine, Componente } from './types'
+import type { InputData, Bom, BomLine, Componente, ComponentRule } from './types'
 import { evaluateFormula } from './formula'
 
 /**
- * Extrae el código de placa del Variant Name.
- * Ejemplo: "200-240, [ZBZ-41] Cuarzo, 40" → "ZBZ-41"
+ * Normaliza un string para comparación tolerante:
+ * - Elimina acentos/diacríticos (ó→o, ñ→n, etc.)
+ * - Minúsculas, quita espacios/puntos/guiones
+ * - Quita ceros iniciales precedidos por letra: ST08→st8, RF12.5→rf125
  */
-function extractPlateCode(varianteName: string): string | null {
-  const match = varianteName.match(/\[([A-Z]+-\d+)\]/)
-  return match ? match[1] : null
+function normalize(s: string): string {
+  return s
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // ó→o, ñ→n, etc.
+    .toLowerCase()
+    .replace(/[\s.\-]/g, '')
+    .replace(/([a-z])0+(\d)/g, '$1$2')  // ST08→ST8 (solo ceros tras letra)
 }
 
-/**
- * Determina si un componente es una placa (ZBZ-XX).
- * Las placas se matchean por variante; los demás se incluyen siempre.
- */
-function isPlateComponent(nombre: string): boolean {
-  return /^ZBZ-\d+/i.test(nombre)
+/** Compara prefijos ignorando acentos y mayúsculas */
+function startsWithDeaccent(s: string, prefix: string): boolean {
+  const norm = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return norm(s).startsWith(norm(prefix))
+}
+
+function extractCode(varianteName: string, mode: ComponentRule['extractMode']): string | null {
+  if (mode === 'brackets') {
+    const m = varianteName.match(/\[([^\]]+)\]/)
+    return m ? m[1].trim() : null
+  }
+  // firstSegment: todo lo que hay antes de la primera coma
+  const m = varianteName.match(/^([^,]+)/)
+  return m ? m[1].trim() : null
+}
+
+function matchesCode(
+  componentName: string,
+  code: string,
+  mode: ComponentRule['matchMode']
+): boolean {
+  if (mode === 'exactPrefix') {
+    // El nombre del componente empieza con el código (+ espacio o fin)
+    return new RegExp(`^${code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(componentName)
+  }
+  // normalizedContains: comparación tolerante a espacios, puntos y ceros
+  return normalize(componentName).includes(normalize(code))
 }
 
 function selectComponentes(
   componentes: Componente[],
-  varianteName: string
+  varianteName: string,
+  rules: ComponentRule[]
 ): Componente[] {
-  const plateCode = extractPlateCode(varianteName)
+  // Solo aplicar reglas que tengan prefijo configurado
+  const activeRules = rules.filter((r) => r.componentPrefix.trim() !== '')
 
   return componentes.filter((c) => {
-    if (!isPlateComponent(c.nombre)) return true // siempre incluir no-placas
-    if (!plateCode) return false
-    // Match exacto: el nombre del componente empieza con el código + espacio
-    return new RegExp(`^${plateCode}(\\s|$)`, 'i').test(c.nombre)
+    for (const rule of activeRules) {
+      if (!startsWithDeaccent(c.nombre, rule.componentPrefix)) continue
+
+      // Este componente pertenece al grupo — intentar extraer código y comparar
+      const code = extractCode(varianteName, rule.extractMode)
+      if (!code) return false
+      return matchesCode(c.nombre, code, rule.matchMode)
+    }
+    return true // componente fijo, siempre se incluye
   })
 }
+
+export const DEFAULT_COMPONENT_RULES: ComponentRule[] = [
+  {
+    id: 'zbz',
+    label: 'Placas ZBZ',
+    componentPrefix: 'ZBZ-',
+    extractMode: 'brackets',
+    matchMode: 'exactPrefix',
+  },
+]
 
 export function processBoms(
   data: InputData,
   startId: number = 30000,
-  startLineId: number = 60000
+  startLineId: number = 60000,
+  componentRules: ComponentRule[] = DEFAULT_COMPONENT_RULES
 ): Bom[] {
   let bomId = startId
   let lineId = startLineId
@@ -43,7 +87,8 @@ export function processBoms(
   return data.variantes.map((variante) => {
     const componentesParaVariante = selectComponentes(
       data.componentes,
-      variante.varianteName
+      variante.varianteName,
+      componentRules
     )
 
     const lineas: BomLine[] = componentesParaVariante.map((componente) => {
