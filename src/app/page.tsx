@@ -31,6 +31,7 @@ export default function Home() {
   const [operacionesFile, setOperacionesFile] = useState<FileState | null>(null)
 
   const [variantesConfirmed, setVariantesConfirmed] = useState(false)
+  const [usePasoRango, setUsePasoRango] = useState(true)
   const [componentRules, setComponentRules] = useState<ComponentRule[]>(DEFAULT_COMPONENT_RULES)
 
   const [startId, setStartId] = useState(() => Math.floor(Math.random() * 1_000_000) + 1)
@@ -95,19 +96,22 @@ export default function Home() {
     setBoms([])
   }
 
-  const allLoaded =
-    variantes !== null && componentes !== null && centros !== null && operaciones !== null
+  const allLoaded = variantes !== null && componentes !== null
 
   function handleGenerate() {
-    if (!variantes || !componentes || !centros) return
-    const generated = processBoms({ variantes, componentes, centrosTrabajo: centros }, startId, startLineId, componentRules)
+    if (!variantes || !componentes) return
+    const generated = processBoms({ variantes, componentes, centrosTrabajo: centros ?? [] }, startId, startLineId, componentRules)
 
     const bomBlob = exportToExcel(generated)
-    const opsBlob = exportOperationsToExcel(generated, centros, operaciones ?? [])
-
     setBoms(generated)
     setDownloadUrl(URL.createObjectURL(bomBlob))
-    setDownloadOpsUrl(URL.createObjectURL(opsBlob))
+
+    if (centros !== null) {
+      const opsBlob = exportOperationsToExcel(generated, centros, operaciones ?? [])
+      setDownloadOpsUrl(URL.createObjectURL(opsBlob))
+    } else {
+      setDownloadOpsUrl(null)
+    }
   }
 
   const totalLines = boms.reduce((acc, b) => acc + b.lineas.length, 0)
@@ -159,12 +163,23 @@ export default function Home() {
                     ]}
                     rows={variantes as unknown as Record<string, unknown>[]}
                   />
-                  <PasoRangoVerification
-                    variantes={variantes}
-                    confirmed={variantesConfirmed}
-                    onConfirm={() => setVariantesConfirmed(true)}
-                    onReset={() => setVariantesConfirmed(false)}
-                  />
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground select-none">
+                    <input
+                      type="checkbox"
+                      checked={usePasoRango}
+                      onChange={(e) => { setUsePasoRango(e.target.checked); setVariantesConfirmed(false) }}
+                      className="rounded border-border accent-primary"
+                    />
+                    Usar Paso y Rango
+                  </label>
+                  {usePasoRango && (
+                    <PasoRangoVerification
+                      variantes={variantes}
+                      confirmed={variantesConfirmed}
+                      onConfirm={() => setVariantesConfirmed(true)}
+                      onReset={() => setVariantesConfirmed(false)}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -201,7 +216,7 @@ export default function Home() {
             <div>
               <UploadZone
                 label="Centros de trabajo"
-                description="Columnas: ID (identificación), Centro de trabajo"
+                description="Opcional · Columnas: ID (identificación), Centro de trabajo"
                 fileName={centrosFile?.name}
                 error={centrosFile?.error}
                 onFile={(f) =>
@@ -229,7 +244,7 @@ export default function Home() {
             <div>
               <UploadZone
                 label="Operaciones"
-                description="Columna: Operación — una por fila, en el mismo orden que los centros de trabajo"
+                description="Opcional · Columna: Operación — una por fila, en el mismo orden que los centros de trabajo"
                 fileName={operacionesFile?.name}
                 error={operacionesFile?.error}
                 onFile={(f) =>
@@ -263,11 +278,11 @@ export default function Home() {
           {/* Config + generate */}
           {allLoaded && (
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Stat label="Variantes" value={variantes.length} />
                 <Stat label="Componentes" value={componentes.length} />
-                <Stat label="Centros de trabajo" value={centros.length} />
-                <Stat label="Operaciones" value={operaciones.length} />
+                {centros !== null && <Stat label="Centros de trabajo" value={centros.length} />}
+                {operaciones !== null && <Stat label="Operaciones" value={operaciones.length} />}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -291,7 +306,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {!variantesConfirmed && (
+              {usePasoRango && !variantesConfirmed && (
                 <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400">
                   <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -307,7 +322,7 @@ export default function Home() {
           )}
 
           {/* Download */}
-          {downloadUrl && downloadOpsUrl && (
+          {downloadUrl && (
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
@@ -317,17 +332,19 @@ export default function Home() {
                   {boms.length} BoMs generadas · {totalLines} líneas totales
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className={cn('grid gap-3', downloadOpsUrl ? 'grid-cols-2' : 'grid-cols-1')}>
                 <a href={downloadUrl} download="bom_output.xlsx" className="block">
                   <Button variant="outline" className="w-full">
                     Descargar BoM
                   </Button>
                 </a>
-                <a href={downloadOpsUrl} download="operaciones_output.xlsx" className="block">
-                  <Button variant="outline" className="w-full">
-                    Descargar Operaciones
-                  </Button>
-                </a>
+                {downloadOpsUrl && (
+                  <a href={downloadOpsUrl} download="operaciones_output.xlsx" className="block">
+                    <Button variant="outline" className="w-full">
+                      Descargar Operaciones
+                    </Button>
+                  </a>
+                )}
               </div>
             </div>
           )}
