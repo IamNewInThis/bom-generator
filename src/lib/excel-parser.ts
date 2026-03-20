@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import type { Variante, Componente, CentroTrabajo, Operacion } from './types'
+import type { Variante, Componente, CentroTrabajo, Operacion, VarianteConCoste } from './types'
 
 type Row = Record<string, unknown>
 
@@ -152,4 +152,31 @@ export function parseOperaciones(buffer: ArrayBuffer, sheetName?: string): Opera
       row['nombre']
     ),
   }))
+}
+
+export function parseVariantesConCoste(buffer: ArrayBuffer, sheetName?: string): VarianteConCoste[] {
+  const rows = getSheet(buffer, sheetName)
+  if (rows.length === 0) throw new Error('El archivo no tiene filas')
+  return rows.map((row) => {
+    const id = str(
+      row['ID (identificación)'] ??
+      row['ID (identificacion)'] ??
+      row['ID'] ??
+      row['id']
+    )
+    const nombre = str(row['Nombre'] ?? row['nombre'])
+    const varianteName = str(
+      row['Variant Name'] ??
+      row['Nombre de variante'] ??
+      row['Nombre variante'] ??
+      row['Referencia']
+    )
+    // Coste: si XLSX ya lo parseó como número lo usamos directamente.
+    // Si viene como string en formato europeo "8.337,66" → eliminar puntos de miles, coma → punto decimal.
+    const costeVal = row['Coste'] ?? row['coste'] ?? row['Cost'] ?? row['cost'] ?? 0
+    const coste = typeof costeVal === 'number'
+      ? costeVal
+      : parseFloat(str(costeVal).replace(/\./g, '').replace(',', '.')) || 0
+    return { id, nombre, varianteName, coste }
+  })
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { UploadZone } from '@/components/upload-zone'
 import { DataPreview } from '@/components/data-preview'
@@ -127,6 +128,12 @@ export default function Home() {
           <p className="mt-2 text-sm text-muted-foreground">
             Genera listas de materiales para Odoo v18
           </p>
+          <Link
+            href="/listas-de-precios"
+            className="mt-3 inline-block text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Listas de precios →
+          </Link>
         </div>
 
         <div className="space-y-8">

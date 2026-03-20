@@ -34,6 +34,13 @@ export interface ComponentRule {
   matchMode: 'exactPrefix' | 'normalizedContains'
 }
 
+export interface VarianteConCoste {
+  id: string
+  nombre: string
+  varianteName: string
+  coste: number
+}
+
 export interface InputData {
   variantes: Variante[]
   componentes: Componente[]
