@@ -3,21 +3,26 @@ import type { Bom } from './types'
 
 type OutputRow = Record<string, string | number>
 
-const HEADERS = [
+const HEADERS_BASE = [
   'ID externo',
   'Producto',
   'Referencia',
   'Variante del producto',
   'Cantidad',
-  'Paso',
-  'Rango',
+]
+const HEADERS_PASO_RANGO = ['Paso', 'Rango']
+const HEADERS_LINES = [
   'Líneas de la lista de materiales/ID externo',
   'Líneas de la lista de materiales/Cantidad',
   'Líneas de la lista de materiales/Componente',
   'Líneas de la lista de materiales/Fórmula de cálculo',
 ]
 
-export function exportToExcel(boms: Bom[]): Blob {
+export function exportToExcel(boms: Bom[], usePasoRango = true): Blob {
+  const HEADERS = usePasoRango
+    ? [...HEADERS_BASE, ...HEADERS_PASO_RANGO, ...HEADERS_LINES]
+    : [...HEADERS_BASE, ...HEADERS_LINES]
+
   const rows: OutputRow[] = []
 
   for (const bom of boms) {
@@ -35,16 +40,16 @@ export function exportToExcel(boms: Bom[]): Blob {
         row['Referencia'] = bom.varianteName      // nombre de la variante
         row['Variante del producto'] = bom.varianteId  // ID numérico Odoo
         row['Cantidad'] = bom.cantidad
-        row['Paso'] = bom.paso
-        row['Rango'] = bom.rango
+        if (usePasoRango) {
+          row['Paso'] = bom.paso
+          row['Rango'] = bom.rango
+        }
       } else {
         row['ID externo'] = ''
         row['Producto'] = ''
         row['Referencia'] = ''
         row['Variante del producto'] = ''
         row['Cantidad'] = ''
-        row['Paso'] = ''
-        row['Rango'] = ''
       }
 
       rows.push(row)

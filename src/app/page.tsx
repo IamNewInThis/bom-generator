@@ -102,7 +102,7 @@ export default function Home() {
     if (!variantes || !componentes) return
     const generated = processBoms({ variantes, componentes, centrosTrabajo: centros ?? [] }, startId, startLineId, componentRules)
 
-    const bomBlob = exportToExcel(generated)
+    const bomBlob = exportToExcel(generated, usePasoRango)
     setBoms(generated)
     setDownloadUrl(URL.createObjectURL(bomBlob))
 
