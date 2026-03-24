@@ -7,7 +7,14 @@ const HEADERS = [
   'Centro de trabajo/ID (identificación)',
   'Lista de materiales/ID externo',
   'Operación',
+  'Duración manual',
 ]
+
+const DURACION_MANUAL: Record<string, number> = {
+  'Felt Corte': 4,
+  'Felt Post Procesado (Lineal)': 10,
+  'Felt Packing (Lineal)': 10,
+}
 
 export function exportOperationsToExcel(
   boms: Bom[],
@@ -20,10 +27,12 @@ export function exportOperationsToExcel(
     // Pair by position: centros[i] ↔ operaciones[i]
     const count = Math.min(centros.length, operaciones.length)
     for (let i = 0; i < count; i++) {
+      const nombre = operaciones[i].nombre
       rows.push({
         'Centro de trabajo/ID (identificación)': centros[i].id,
         'Lista de materiales/ID externo': `__import__.${bom.idExterno}`,
-        'Operación': operaciones[i].nombre,
+        'Operación': nombre,
+        'Duración manual': DURACION_MANUAL[nombre] ?? '',
       })
     }
   }

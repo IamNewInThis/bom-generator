@@ -48,9 +48,10 @@ function parsePasoRangoFromName(varianteName: string): { paso: number; rango: nu
     rango = num(parts[0]?.trim().match(/\d+/)?.[0] ?? '0')
   }
 
-  // Paso: el último segmento si es un número suelto (no contiene "X-Y")
-  const lastPart = parts[parts.length - 1]?.trim() ?? ''
-  const paso = /\d+-\d+/.test(lastPart) ? 0 : num(lastPart.match(/\d+[\.,]?\d*/)?.[0] ?? '0')
+  // Paso: cualquier segmento que sea puramente numérico (no rango X-Y, no texto, no brackets)
+  // independiente del orden en que aparezca
+  const pasoSegment = parts.find(p => /^\d+[\.,]?\d*$/.test(p.trim()))
+  const paso = pasoSegment != null ? num(pasoSegment.trim()) : 0
 
   return { paso, rango }
 }

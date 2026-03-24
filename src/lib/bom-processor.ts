@@ -100,6 +100,7 @@ export function processBoms(
       return {
         idExterno: `mrp_bom_line_${lineId++}`,
         cantidad,
+        componenteId: componente.id,
         componente: componente.nombre,
         formula: componente.formula,
       }

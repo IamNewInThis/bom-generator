@@ -50,6 +50,7 @@ export interface InputData {
 export interface BomLine {
   idExterno: string
   cantidad: number
+  componenteId: string
   componente: string
   formula: string
 }

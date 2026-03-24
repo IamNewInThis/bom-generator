@@ -14,7 +14,7 @@ const HEADERS_PASO_RANGO = ['Paso', 'Rango']
 const HEADERS_LINES = [
   'Líneas de la lista de materiales/ID externo',
   'Líneas de la lista de materiales/Cantidad',
-  'Líneas de la lista de materiales/Componente',
+  'Líneas de la lista de materiales/Componente/ID (identificación)',
   'Líneas de la lista de materiales/Fórmula de cálculo',
 ]
 
@@ -30,7 +30,7 @@ export function exportToExcel(boms: Bom[], usePasoRango = true): Blob {
       const row: OutputRow = {
         'Líneas de la lista de materiales/ID externo': linea.idExterno,
         'Líneas de la lista de materiales/Cantidad': linea.cantidad,
-        'Líneas de la lista de materiales/Componente': linea.componente,
+        'Líneas de la lista de materiales/Componente/ID (identificación)': linea.componenteId,
         'Líneas de la lista de materiales/Fórmula de cálculo': linea.formula,
       }
 
