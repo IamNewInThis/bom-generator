@@ -8,7 +8,8 @@ export interface Variante {
 }
 
 export interface Componente {
-  id: string           // ID (identificación) de Odoo
+  id: string           // ID (identificación) de Odoo — ID numérico interno
+  idExterno: string    // ID externo / XML ID de Odoo, ej: __export__.product_product_5416_xxx
   nombre: string
   unidadMedida: string
   formula: string
@@ -31,7 +32,7 @@ export interface ComponentRule {
   /** Cómo extraer el código del Variant Name */
   extractMode: 'brackets' | 'firstSegment'
   /** Cómo comparar el código con el nombre del componente */
-  matchMode: 'exactPrefix' | 'normalizedContains'
+  matchMode: 'exactPrefix' | 'normalizedContains' | 'familyPrefix' | 'codePrefix'
 }
 
 export interface VarianteConCoste {
@@ -50,7 +51,8 @@ export interface InputData {
 export interface BomLine {
   idExterno: string
   cantidad: number
-  componenteId: string
+  componenteId: string         // ID numérico interno
+  componenteIdExterno: string  // XML ID externo (__export__.product_product_xxx)
   componente: string
   formula: string
 }

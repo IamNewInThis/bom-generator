@@ -11,14 +11,35 @@ const HEADERS_BASE = [
   'Cantidad',
 ]
 const HEADERS_PASO_RANGO = ['Paso', 'Rango']
-const HEADERS_LINES = [
+const HEADERS_LINES_INTERNAL_ID = [
+  'Líneas de la lista de materiales/ID externo',
+  'Líneas de la lista de materiales/Cantidad',
+  'Líneas de la lista de materiales/Componente/.id',
+  'Líneas de la lista de materiales/Fórmula de cálculo',
+]
+const HEADERS_LINES_EXTERNAL_ID = [
   'Líneas de la lista de materiales/ID externo',
   'Líneas de la lista de materiales/Cantidad',
   'Líneas de la lista de materiales/Componente/ID (identificación)',
   'Líneas de la lista de materiales/Fórmula de cálculo',
 ]
+const HEADERS_LINES_NAME = [
+  'Líneas de la lista de materiales/ID externo',
+  'Líneas de la lista de materiales/Cantidad',
+  'Líneas de la lista de materiales/Componente',
+  'Líneas de la lista de materiales/Fórmula de cálculo',
+]
 
-export function exportToExcel(boms: Bom[], usePasoRango = true): Blob {
+export function exportToExcel(boms: Bom[], usePasoRango = true, componentField: 'internalId' | 'externalId' | 'name' = 'internalId'): Blob {
+  const HEADERS_LINES =
+    componentField === 'name' ? HEADERS_LINES_NAME :
+    componentField === 'externalId' ? HEADERS_LINES_EXTERNAL_ID :
+    HEADERS_LINES_INTERNAL_ID
+  const componentColHeader =
+    componentField === 'name' ? 'Líneas de la lista de materiales/Componente' :
+    componentField === 'externalId' ? 'Líneas de la lista de materiales/Componente/ID (identificación)' :
+    'Líneas de la lista de materiales/Componente/.id'
+
   const HEADERS = usePasoRango
     ? [...HEADERS_BASE, ...HEADERS_PASO_RANGO, ...HEADERS_LINES]
     : [...HEADERS_BASE, ...HEADERS_LINES]
@@ -30,7 +51,10 @@ export function exportToExcel(boms: Bom[], usePasoRango = true): Blob {
       const row: OutputRow = {
         'Líneas de la lista de materiales/ID externo': linea.idExterno,
         'Líneas de la lista de materiales/Cantidad': linea.cantidad,
-        'Líneas de la lista de materiales/Componente/ID (identificación)': linea.componenteId,
+        [componentColHeader]:
+          componentField === 'name' ? linea.componente :
+          componentField === 'externalId' ? linea.componenteIdExterno :
+          linea.componenteId,
         'Líneas de la lista de materiales/Fórmula de cálculo': linea.formula,
       }
 

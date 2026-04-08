@@ -33,6 +33,7 @@ export default function Home() {
 
   const [variantesConfirmed, setVariantesConfirmed] = useState(false)
   const [usePasoRango, setUsePasoRango] = useState(true)
+  const [componentField, setComponentField] = useState<'internalId' | 'externalId' | 'name'>('internalId')
   const [componentRules, setComponentRules] = useState<ComponentRule[]>(DEFAULT_COMPONENT_RULES)
 
   const [startId, setStartId] = useState(() => Math.floor(Math.random() * 1_000_000) + 1)
@@ -103,7 +104,7 @@ export default function Home() {
     if (!variantes || !componentes) return
     const generated = processBoms({ variantes, componentes, centrosTrabajo: centros ?? [] }, startId, startLineId, componentRules)
 
-    const bomBlob = exportToExcel(generated, usePasoRango)
+    const bomBlob = exportToExcel(generated, usePasoRango, componentField)
     setBoms(generated)
     setDownloadUrl(URL.createObjectURL(bomBlob))
 
@@ -321,6 +322,50 @@ export default function Home() {
                   Verifica que Paso y Rango se hayan extraído correctamente antes de generar.
                 </div>
               )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted-foreground">Identificar componentes por</label>
+                <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                  <button
+                    onClick={() => setComponentField('internalId')}
+                    className={cn(
+                      'flex-1 px-3 py-1.5 transition-colors',
+                      componentField === 'internalId'
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-background text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    ID interno
+                  </button>
+                  <button
+                    onClick={() => setComponentField('externalId')}
+                    className={cn(
+                      'flex-1 px-3 py-1.5 border-l border-border transition-colors',
+                      componentField === 'externalId'
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-background text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    ID externo
+                  </button>
+                  <button
+                    onClick={() => setComponentField('name')}
+                    className={cn(
+                      'flex-1 px-3 py-1.5 border-l border-border transition-colors',
+                      componentField === 'name'
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-background text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Nombre
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {componentField === 'internalId' && 'ID numérico de la BD → columna Componente/.id (recomendado si el ID del componente es un número)'}
+                  {componentField === 'externalId' && 'XML ID de Odoo → columna Componente/ID (identificación) (usar si el ID tiene formato módulo.nombre)'}
+                  {componentField === 'name' && 'Nombre del producto → no funciona si el componente es una variante'}
+                </p>
+              </div>
 
               <Button onClick={handleGenerate} className="w-full">
                 Generar BoM
@@ -638,6 +683,15 @@ function RuleRow({
         if (rule.matchMode === 'exactPrefix') {
           return new RegExp(`^${code!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(c.nombre)
         }
+        if (rule.matchMode === 'codePrefix') {
+          const prefix = code!.split(/\s+/)[0]
+          return new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(c.nombre)
+        }
+        if (rule.matchMode === 'familyPrefix') {
+          const codeFamily = code!.split('-')[0].trim()
+          const prefixFamily = rule.componentPrefix.split('-')[0].trim()
+          return codeFamily.toLowerCase() === prefixFamily.toLowerCase()
+        }
         return normalize(c.nombre).includes(normalize(code!))
       })
       return { variant: v.varianteName, code, match: match?.nombre ?? null }
@@ -686,11 +740,19 @@ function RuleRow({
         <div className="space-y-1">
           <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Modo de coincidencia</label>
           <select value={rule.matchMode} onChange={(e) => onUpdate({ matchMode: e.target.value as ComponentRule['matchMode'] })} className={selectCls}>
-            <option value="exactPrefix">Prefijo exacto</option>
+            <option value="codePrefix">Código sin color (Z09-110 Mármol → Z09-110)</option>
+            <option value="exactPrefix">Prefijo exacto (código completo)</option>
             <option value="normalizedContains">Contiene (normalizado)</option>
+            <option value="familyPrefix">Familia del código (D09-xxx → D09)</option>
           </select>
           {rule.matchMode === 'normalizedContains' && (
             <p className="text-[10px] text-muted-foreground">Ignora espacios, puntos y ceros → ST08 = ST 8mm</p>
+          )}
+          {rule.matchMode === 'familyPrefix' && (
+            <p className="text-[10px] text-muted-foreground">Compara la familia antes del primer guión → D09-105 Blanco ↔ D09-650</p>
+          )}
+          {rule.matchMode === 'codePrefix' && (
+            <p className="text-[10px] text-muted-foreground">Usa el código hasta el primer espacio → Z09-110 Mármol → Z09-110 (recomendado)</p>
           )}
         </div>
       </div>

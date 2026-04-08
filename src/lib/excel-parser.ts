@@ -25,18 +25,22 @@ function getSheet(buffer: ArrayBuffer, sheetName?: string): Row[] {
 
 /**
  * Extrae Paso y Rango del Variant Name.
- * Busca el primer segmento con patrón "X-Y" (en cualquier posición) y toma Y como rango.
- * Paso: el último segmento si es un número suelto (no forma parte de un rango).
+ * Busca el primer segmento con patrón "X-Y" (ignorando segmentos con corchetes) y toma Y como rango.
+ * Paso: cualquier segmento puramente numérico (no rango X-Y, no texto, no brackets).
  * Ejemplos:
- *   "200-240, [ZBZ-41] Cuarzo, 40" → rango=240, paso=40
- *   "ST08, 0-100"                   → rango=100, paso=0
+ *   "200-240, [ZBZ-41] Cuarzo, 40"   → rango=240, paso=40
+ *   "ST08, 0-100"                     → rango=100, paso=0
+ *   "50, [D09-105 Blanco], 0-200"     → rango=200, paso=50
+ *   "50, [Z09-XXX Por Definir], 0-200" → rango=200, paso=50
  */
 function parsePasoRangoFromName(varianteName: string): { paso: number; rango: number } {
   const parts = varianteName.split(',')
 
-  // Rango: buscar el primer segmento que contenga un patrón "X-Y"
+  // Rango: buscar el primer segmento que contenga un patrón "X-Y",
+  // ignorando segmentos con corchetes para evitar falsos matches en IDs como [D09-105 Blanco]
   let rango = 0
   for (const part of parts) {
+    if (part.includes('[') || part.includes(']')) continue
     const rangeMatch = part.trim().match(/\d+[\.,]?\d*-(\d+[\.,]?\d*)/)
     if (rangeMatch) {
       rango = num(rangeMatch[1])
@@ -108,6 +112,13 @@ export function parseComponentes(buffer: ArrayBuffer, sheetName?: string): Compo
       row['ID (identificacion)'] ??
       row['ID'] ??
       row['id']
+    ),
+    idExterno: str(
+      row['ID externo'] ??
+      row['id externo'] ??
+      row['External ID'] ??
+      row['external_id'] ??
+      ''
     ),
     nombre: str(row['Nombre'] ?? row['nombre']),
     unidadMedida: str(

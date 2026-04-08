@@ -34,11 +34,25 @@ function extractCode(varianteName: string, mode: ComponentRule['extractMode']): 
 function matchesCode(
   componentName: string,
   code: string,
-  mode: ComponentRule['matchMode']
+  mode: ComponentRule['matchMode'],
+  componentPrefix?: string
 ): boolean {
   if (mode === 'exactPrefix') {
-    // El nombre del componente empieza con el código (+ espacio o fin)
+    // El nombre del componente empieza con el código completo (+ espacio o fin)
     return new RegExp(`^${code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(componentName)
+  }
+  if (mode === 'codePrefix') {
+    // Toma solo lo anterior al primer espacio del código: "Z09-110 Mármol" → "Z09-110"
+    // Permite que distintas familias (ZBZ/Z09/D09) usen el mismo modo
+    const prefix = code.split(/\s+/)[0]
+    return new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(componentName)
+  }
+  if (mode === 'familyPrefix') {
+    // Extrae la familia del código del corchete: "D09-105 Blanco" → "D09"
+    const codeFamily = code.split('-')[0].trim()
+    // Extrae la familia del prefijo de la regla: "D09-" → "D09"
+    const prefixFamily = (componentPrefix ?? '').split('-')[0].trim()
+    return normalize(prefixFamily) === normalize(codeFamily)
   }
   // normalizedContains: comparación tolerante a espacios, puntos y ceros
   return normalize(componentName).includes(normalize(code))
@@ -59,7 +73,7 @@ function selectComponentes(
       // Este componente pertenece al grupo — intentar extraer código y comparar
       const code = extractCode(varianteName, rule.extractMode)
       if (!code) return false
-      return matchesCode(c.nombre, code, rule.matchMode)
+      return matchesCode(c.nombre, code, rule.matchMode, rule.componentPrefix)
     }
     return true // componente fijo, siempre se incluye
   })
@@ -71,7 +85,7 @@ export const DEFAULT_COMPONENT_RULES: ComponentRule[] = [
     label: 'Placas ZBZ',
     componentPrefix: 'ZBZ-',
     extractMode: 'brackets',
-    matchMode: 'exactPrefix',
+    matchMode: 'codePrefix',
   },
 ]
 
@@ -101,6 +115,7 @@ export function processBoms(
         idExterno: `mrp_bom_line_${lineId++}`,
         cantidad,
         componenteId: componente.id,
+        componenteIdExterno: componente.idExterno,
         componente: componente.nombre,
         formula: componente.formula,
       }
